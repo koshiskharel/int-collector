@@ -1,0 +1,69 @@
+version: "3.9"
+services:
+  grafana:
+    image: grafana/grafana:7.3.3
+    container_name: grafana_container
+    restart: always
+    ports:
+      - 3003:3000
+    volumes:
+      - ./grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources-ch.yml
+      - ./grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD}
+  influxdb:
+    image: influxdb:1.8.3
+    container_name: influxdb_container
+    restart: always
+    ports:
+      - 8086:8086
+      - 8089:8089/udp
+    environment:
+      - INFLUXDB_ADMIN_USER=admin
+      - INFLUXDB_ADMIN_PASSWORD=admin
+      - INFLUXDB_USER= admin
+      - INFLUXDB_USER_PASSWORD=admin
+      - INFLUXDB_DB=int_telemetry_db
+      - INFLUXDB_RETENTION_POLICY=int_udp_policy
+      - INFLUXDB_UDP_0_ENABLED=true
+      - INFLUXDB_UDP_0_DATABASE=int_telemetry_db
+      - INFLUXDB_UDP_0_RETENTION_POLICY=int_udp_policy
+      - INFLUXDB_UDP_0_BATCH_TIMEOUT=1s
+      - INFLUXDB_UDP_0_PRECISION=ns
+      - INFLUXDB_UDP_0_BATCH_SIZE=5000
+      - INFLUXDB_UDP_0_BATCH_PENDING=100
+      - INFLUXDB_UDP_0_BIND_ADDRESS=0.0.0.0:8089
+      - INFLUXDB_UDP_0_READ_BUFFER=1073741824      #1G instead of 8388608
+
+  int-collector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    privileged: true
+    tty: true
+    depends_on:
+      - influxdb
+    network_mode: "host"
+    environment:
+      - INFLUX_PORT= 8086
+      - INFLUX_ADDRESS= influxdb
+      - IFACE= 'eth0'
+      - INT_PORT= 8090
+      - DATABASE_NAME= 'int_telemetry_db'
+      - PERIOD= 1
+      - EVENT_PERIOD= 0
+      - THRESHOLDS_SIZE= '50 50 50 50 50 100'
+      - LOG_LEVEL= 20
+      - LOG_RAPORTS_LEVEL= 20
+    volumes:
+      - /lib/modules:/lib/modules:ro
+      - /etc/localtime:/etc/localtime:ro
+
+#volumes:
+#  grafana-volume:
+#    external: true
+#  influxdb-volume:
+#    external: true

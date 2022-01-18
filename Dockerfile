@@ -1,10 +1,20 @@
-FROM ubuntu:18.04
+FROM docker/for-desktop-kernel:5.10.76-505289bcc85427a04d8d797e06cbca92eee291f4-amd64 AS ksrc
 
+FROM ubuntu:latest
+ARG DEBIAN_FRONTEND=noninteractive
+
+WORKDIR /
 RUN apt-get update
 RUN apt-get -y install python3 python3-distutils python3-pip
-RUN apt-get -y install sudo linux-headers-$(uname -r) bison build-essential cmake flex git libedit-dev \
-  libllvm6.0 llvm-6.0-dev libclang-6.0-dev python zlib1g-dev libelf-dev libfl-dev
+RUN apt-get -y install sudo bison build-essential cmake flex git libedit-dev \
+  libllvm6.0 llvm-6.0-dev libclang-6.0-dev python zlib1g-dev libelf-dev libfl-dev\
+    net-tools tcpdump iproute2
 
+
+COPY --from=ksrc /kernel-dev.tar /
+RUN tar xf kernel-dev.tar && rm kernel-dev.tar
+
+RUN apt-get update
 # Install BCC
 RUN git clone https://github.com/iovisor/bcc.git
 RUN mkdir bcc/build
@@ -16,8 +26,6 @@ RUN make && make install
 RUN cmake -DPYTHON_CMD=python3 ..
 WORKDIR src/python
 RUN make && make install
-#Install network tools
-RUN apt-get -y install net-tools tcpdump
 
 #Install requirements
 WORKDIR /
@@ -27,21 +35,16 @@ RUN pip3 install -r requirements.txt
 COPY ./collector /INTcollector
 WORKDIR /INTcollector
 
-ENV IFACE eth0
-ENV INFLUX_ADDRESS 127.0.0.1
-ENV INFLUX_PORT 8086
-ENV INT_PORT 8090
-ENV DATABASE_NAME int_telemetry_db
-ENV PERIOD 1
-ENV EVENT_PERIOD 0
-ENV THRESHOLDS_SIZE 50 50 50 50 50 100
-ENV LOG_LEVEL 20
-ENV LOG_RAPORTS_LEVEL 20
-ENV CLEAR n
+#ENV CLEAR n
+COPY ./benchmark /INTcollector/benchmark
 
-ENTRYPOINT python3 InDBClient.py $IFACE -H $INFLUX_ADDRESS -INFP $INFLUX_PORT -i $INT_PORT -D $DATABASE_NAME -p $PERIOD -P $EVENT_PERIOD \
--T $THRESHOLDS_SIZE -l $LOG_LEVEL -l_rap $LOG_RAPORTS_LEVEL --clear $CLEAR
+WORKDIR /root
+CMD mount -t debugfs debugfs /sys/kernel/debug && /bin/bash
 
+WORKDIR /INTcollector
+#ENTRYPOINT python3 InDBClient.py $IFACE -H $INFLUX_ADDRESS -INFP $INFLUX_PORT -i $INT_PORT -D $DATABASE_NAME -p $PERIOD -P $EVENT_PERIOD \
+#-T $THRESHOLDS_SIZE -l $LOG_LEVEL -l_rap $LOG_RAPORTS_LEVEL --clear $CLEAR
 
+# python3 InDBClient.py veth_1 -H 0.0.0.0 -INFP $INFLUX_PORT -i $INT_PORT -D $DATABASE_NAME -p $PERIOD -P $EVENT_PERIOD
 
 

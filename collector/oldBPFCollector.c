@@ -6,6 +6,10 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 
+typedef __u64 u64;
+typedef __u32 u32;
+typedef __u16 u16;
+typedef __u8 u8;
 
 #define ETHTYPE_IP 0x0800
 
@@ -17,28 +21,6 @@
 // possible-to-compare-ifdef-values-for-conditional-use
 #define INT_DST_PORT _INT_DST_PORT
 #define MAX_INT_HOP _MAX_INT_HOP
-
-#define SERVER_MODE _SERVER_MODE
-#define PROMETHEUS 1
-#define INFLUXDB 2
-#if SERVER_MODE == INFLUXDB
-    #define USE_INFLUXDB
-#endif
-#if SERVER_MODE == PROMETHEUS
-    #define USE_PROMETHEUS
-#endif
-
-
-#define EVENT_MODE _EVENT_MODE
-#define INTERVAL 1
-#define THRESHOLD 2
-#if EVENT_MODE == INTERVAL
-    #define USE_INTERVAL
-#endif
-#if EVENT_MODE == THRESHOLD
-    #define USE_THRESHOLD
-#endif
-
 
 #define TO_EGRESS 0
 #define TO_INGRESS 1
@@ -53,38 +35,13 @@
 #define INT_SHIM_SIZE 4
 #define INT_TAIL_SIZE 4
 
-
-#ifdef USE_THRESHOLD
 // TODO: set these values from use space
-#define HOP_LATENCY 50
-#define FLOW_LATENCY 50
-#define QUEUE_OCCUP 50
-#define QUEUE_CONGEST 50
-#define TX_UTILIZE 50
-#define TIME_GAP_W 100 //ns
-
-// Threshold only for influxDB
-#ifdef USE_PROMETHEUS
-#error Threshold only for InfluxDB
-#endif
-#endif
-
-// Default to use interval
-#ifndef USE_THRESHOLD
-#ifndef USE_INTERVAL
-#define USE_INTERVAL
-#endif
-#endif
-
-#ifdef USE_INTERVAL
-// TODO: set these values from use space
-#define HOP_LATENCY 6 // 64
-#define FLOW_LATENCY 6
-#define QUEUE_OCCUP 6
-#define QUEUE_CONGEST 6
-#define TX_UTILIZE 6
-#define TIME_GAP_W 100 //ns
-#endif
+#define HOP_LATENCY _HOP_LATENCY
+#define FLOW_LATENCY _FLOW_LATENCY
+#define QUEUE_OCCUP _QUEUE_OCCUP
+#define QUEUE_CONGEST _QUEUE_CONGEST
+#define TX_UTILIZE _TX_UTILIZE
+#define TIME_GAP_W _TIME_GAP_W //ns
 
 #define CURSOR_ADVANCE(_target, _cursor, _len,_data_end) \
     ({  _target = _cursor; _cursor += _len; \
@@ -146,6 +103,9 @@ struct telemetry_report_v10_t {
     u8  q:1,
         f:1,
         hw_id:6;
+    u32 sw_id;
+    u32 seqNumber;
+    u32 ingressTimestamp;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
     u8  len:4,
         ver:4;
@@ -156,13 +116,15 @@ struct telemetry_report_v10_t {
     u8  hw_id:6,
         f:1,
         q:1;
-#else
-#error  "Please fix <asm/byteorder.h>"
-#endif
-
     u32 sw_id;
     u32 seqNumber;
     u32 ingressTimestamp;
+#else
+#error  "Please fix <asm/byteorder.h>"
+#endif
+    // u32 sw_id;
+    // u32 seqNumber;
+    // u32 ingressTimestamp;
 } __attribute__((packed));
 
 struct INT_shim_t {
@@ -287,7 +249,7 @@ struct egr_info_t {
 
 struct queue_id_t {
     u32 sw_id;
-    u16 q_id;
+    u8 q_id;
 };
 
 struct queue_info_t {
@@ -329,13 +291,15 @@ struct flow_info_t {
 
     u8 is_n_flow;
 
-#ifdef USE_INFLUXDB
+// #ifdef USE_INFLUXDB
     u8 is_flow;
-#endif
+// #endif
 
     u8 is_hop_latency;
     u8 is_queue_occup;
     u8 is_tx_utilize;
+    u32 seq_num;
+    u32 switchID;
 };
 
 BPF_PERF_OUTPUT(events);
@@ -381,7 +345,6 @@ int collector(struct xdp_md *ctx) {
     // struct telemetry_report_t *tm_rp;
     struct telemetry_report_v10_t *tm_rp;
     CURSOR_ADVANCE(tm_rp, cursor, sizeof(*tm_rp), data_end);
-
 
     /*
         Parse Inner: Ether->IP->UDP/TCP->INT.
@@ -435,7 +398,9 @@ int collector(struct xdp_md *ctx) {
         .ip_proto = in_ip->protocol,
 
         .num_INT_hop = num_INT_hop,
-        .flow_sink_time = ntohl(tm_rp->ingressTimestamp)
+        .flow_sink_time = ntohl(tm_rp->ingressTimestamp),
+        .seq_num = ntohl(tm_rp->seqNumber),
+        .switchID = ntohl(tm_rp->sw_id)
     };
 
     u16 INT_ins = ntohs(INT_md_fix->ins);
@@ -469,7 +434,7 @@ int collector(struct xdp_md *ctx) {
         }
         if (is_queue_occups) {
             CURSOR_ADVANCE(INT_data, cursor, sizeof(*INT_data), data_end);
-            flow_info.queue_ids[i] = (ntohl(*INT_data) >> 16) & 0xffff;
+            flow_info.queue_ids[i] = (ntohl(*INT_data) >> 24) & 0xffff;
             flow_info.queue_occups[i] = ntohl(*INT_data) & 0xffff;
         }
         if (is_ingr_times) {
@@ -540,24 +505,6 @@ int collector(struct xdp_md *ctx) {
         // flow_info.byte_cnt += ntohs(ip->tot_len);
 
     } else {
-
-#ifdef USE_INTERVAL
-        if (flow_info_p->flow_sink_time + TIME_GAP_W < flow_info.flow_sink_time) {
-                is_update = 1;
-            }
-
-        if (is_hop_latencies &
-            flow_info.flow_latency >> FLOW_LATENCY !=
-            flow_info_p->flow_latency >> FLOW_LATENCY) {
-
-#ifdef USE_INFLUXDB
-            flow_info.is_flow = 1;
-#endif
-            is_update = 1;
-        }
-#endif
-
-#ifdef USE_THRESHOLD
         // only need periodically push for flow info, so we can know the live status of the flow
         if ((flow_info_p->flow_sink_time + TIME_GAP_W < flow_info.flow_sink_time)
             | (is_hop_latencies & (ABS(flow_info.flow_latency, flow_info_p->flow_latency) > FLOW_LATENCY))
@@ -566,7 +513,6 @@ int collector(struct xdp_md *ctx) {
             flow_info.is_flow = 1;
             is_update = 1;
         }
-#endif
 
         _num_INT_hop = num_INT_hop;
         #pragma unroll
@@ -575,34 +521,18 @@ int collector(struct xdp_md *ctx) {
 
             if (unlikely(flow_info.sw_ids[i] != flow_info_p->sw_ids[i])) {
                 is_update = 1;
-#ifdef USE_INFLUXDB
                 flow_info.is_flow = 1;
-#endif
                 if (is_hop_latencies) {
                     flow_info.is_hop_latency |= 1 << i;
                 }
             }
 
-#ifdef USE_INTERVAL
-#ifdef USE_INFLUXDB
-            if (unlikely(is_hop_latencies &
-                    (flow_info.hop_latencies[i] >> HOP_LATENCY !=
-                    flow_info_p->hop_latencies[i] >> HOP_LATENCY))) {
-
-                flow_info.is_hop_latency |= 1 << i;
-                is_update = 1;
-            }
-#endif
-#endif
-
-#ifdef USE_THRESHOLD
             if (unlikely(is_hop_latencies &
                 (ABS(flow_info.hop_latencies[i], flow_info_p->hop_latencies[i]) > HOP_LATENCY))) {
 
                 flow_info.is_hop_latency |= 1 << i;
                 is_update = 1;
             }
-#endif
 
             // no need for the final round
             if (i < MAX_INT_HOP - 1) {
@@ -651,27 +581,11 @@ int collector(struct xdp_md *ctx) {
                 is_update = 1;
             }
             else {
-
-#ifdef USE_INTERVAL
-                if (egr_info_p->egr_time + TIME_GAP_W < egr_info.egr_time) {
-                    is_update = 1;
-                }
-
-#ifdef USE_INFLUXDB
-                if (unlikely(egr_info.tx_utilize >> TX_UTILIZE != egr_info_p->tx_utilize >> TX_UTILIZE)) {
-                    flow_info.is_tx_utilize |= 1 << i;
-                    is_update = 1;
-                }
-#endif
-#endif
-
-#ifdef USE_THRESHOLD
                 if (unlikely(ABS(egr_info.tx_utilize, egr_info_p->tx_utilize) > TX_UTILIZE)) {
 
                     flow_info.is_tx_utilize |= 1 << i;
                     is_update = 1;
                 }
-#endif
             }
 
             if (is_update)
@@ -713,27 +627,10 @@ int collector(struct xdp_md *ctx) {
 
             } else {
 
-#ifdef USE_INTERVAL
-                if (queue_info_p->q_time + TIME_GAP_W < queue_info.q_time) {
-                    is_update = 1;
-                }
-
-#ifdef USE_INFLUXDB
-                if (unlikely(queue_info.occup >> QUEUE_OCCUP != queue_info_p->occup >> QUEUE_OCCUP)) {
-
-                    flow_info.is_queue_occup |= 1 << i;
-                    is_update = 1;
-                }
-#endif
-#endif
-
-#ifdef USE_THRESHOLD
-
                 if (unlikely(ABS(queue_info.occup, queue_info_p->occup) > QUEUE_OCCUP)) {
                     flow_info.is_queue_occup |= 1 << i;
                     is_update = 1;
                 }
-#endif
             }
 
             if (is_update)
@@ -747,9 +644,7 @@ int collector(struct xdp_md *ctx) {
     // submit event info to user space
     if (unlikely(flow_info.is_n_flow |
         flow_info.is_hop_latency | flow_info.is_queue_occup | flow_info.is_tx_utilize
-#ifdef USE_INFLUXDB
         | flow_info.is_flow
-#endif
         )
     )
         events.perf_submit(ctx, &flow_info, sizeof(flow_info));
