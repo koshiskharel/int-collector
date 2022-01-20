@@ -17,7 +17,7 @@ import json
 from datetime import datetime
 
 # change array len of sw_ids.. to .. tx_utilizes to match with max_int_hop in the collector
-cdef enum: __MAX_INT_HOP = 2
+cdef enum: __MAX_INT_HOP = 6
 _MAX_INT_HOP = __MAX_INT_HOP
 cdef struct Event:
     unsigned int   src_ip
@@ -56,7 +56,7 @@ class InDBCollector(object):
     """docstring for InDBCollector"""
 
     def __init__(self,
-                 max_int_hop=2,
+                 max_int_hop=6,
                  int_dst_port=8090,
                  int_time=False,
                  host="localhost",
@@ -197,7 +197,6 @@ class InDBCollector(object):
         for index in range(_MAX_INT_HOP):
             if ingr_times[index] == 0:
                 last_hop_index = index - 1
-                print("here", last_hop_index)
                 last_ingr_time = ingr_times[last_hop_index]
                 break
         else:

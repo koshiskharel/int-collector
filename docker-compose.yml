@@ -62,8 +62,3 @@ services:
       - /lib/modules:/lib/modules:ro
       - /etc/localtime:/etc/localtime:ro
 
-#volumes:
-#  grafana-volume:
-#    external: true
-#  influxdb-volume:
-#    external: true
