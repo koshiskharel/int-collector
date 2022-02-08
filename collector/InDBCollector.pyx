@@ -90,7 +90,7 @@ class InDBCollector(object):
         self.ifaces = set()
 
         #load eBPF program
-        self.bpf_collector = BPF(src_file="BPFCollector.c", debug=0,
+        self.bpf_collector = BPF(src_file="SBPFCollector.c", debug=0,
                                  cflags=["-w",
                                          "-D_MAX_INT_HOP=%s" % self.MAX_INT_HOP,
                                          "-D_INT_DST_PORT=%s" % self.INT_DST_PORT,

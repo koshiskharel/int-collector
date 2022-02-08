@@ -422,6 +422,11 @@ int collector(struct xdp_md *ctx) {
         CURSOR_ADVANCE(INT_data, cursor, sizeof(*INT_data), data_end);
         flow_info.sw_ids[i] = ntohl(*INT_data);
 
+        flow_info.ingr_times[i] = ntohl(*INT_data);
+        flow_info.egr_times[i] = ntohl(*INT_data);
+        flow_info.lv2_in_e_port_ids[i] = ntohl(*INT_data);
+        flow_info.tx_utilizes[i] = ntohl(*INT_data);
+
         if (is_in_e_port_ids) {
             CURSOR_ADVANCE(INT_data, cursor, sizeof(*INT_data), data_end);
             flow_info.in_port_ids[i] = (ntohl(*INT_data) >> 16) & 0xffff;
@@ -437,22 +442,22 @@ int collector(struct xdp_md *ctx) {
             flow_info.queue_ids[i] = (ntohl(*INT_data) >> 24) & 0xffff;
             flow_info.queue_occups[i] = ntohl(*INT_data) & 0xffff;
         }
-        if (is_ingr_times) {
-            CURSOR_ADVANCE(INT_data, cursor, sizeof(*INT_data), data_end);
-            flow_info.ingr_times[i] = ntohl(*INT_data);
-        }
-        if (is_egr_times) {
-            CURSOR_ADVANCE(INT_data, cursor, sizeof(*INT_data), data_end);
-            flow_info.egr_times[i] = ntohl(*INT_data);
-        }
-        if (is_lv2_in_e_port_ids) {
-            CURSOR_ADVANCE(INT_data, cursor, sizeof(*INT_data), data_end);
-            flow_info.lv2_in_e_port_ids[i] = ntohl(*INT_data);
-        }
-        if (is_tx_utilizes) {
-            CURSOR_ADVANCE(INT_data, cursor, sizeof(*INT_data), data_end);
-            flow_info.tx_utilizes[i] = ntohl(*INT_data);
-        }
+//        if (is_ingr_times) {
+//            CURSOR_ADVANCE(INT_data, cursor, sizeof(*INT_data), data_end);
+//            flow_info.ingr_times[i] = ntohl(*INT_data);
+//        }
+//        if (is_egr_times) {
+//            CURSOR_ADVANCE(INT_data, cursor, sizeof(*INT_data), data_end);
+//            flow_info.egr_times[i] = ntohl(*INT_data);
+//        }
+//        if (is_lv2_in_e_port_ids) {
+//            CURSOR_ADVANCE(INT_data, cursor, sizeof(*INT_data), data_end);
+//            flow_info.lv2_in_e_port_ids[i] = ntohl(*INT_data);
+//        }
+//        if (is_tx_utilizes) {
+//            CURSOR_ADVANCE(INT_data, cursor, sizeof(*INT_data), data_end);
+//            flow_info.tx_utilizes[i] = ntohl(*INT_data);
+//        }
 
         // no need for the final round
         if (i < MAX_INT_HOP - 1) {
