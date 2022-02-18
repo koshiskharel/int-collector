@@ -457,10 +457,10 @@ int collector(struct xdp_md *ctx) {
         CURSOR_ADVANCE(INT_data, cursor, sizeof(*INT_data), data_end);
         flow_info.sw_ids[i] = ntohl(*INT_data);
         //Assuming the following are always presented since having if conditions wont work on latest kernel
-        flow_info.ingr_times[i] = ntohl(*INT_data);
-        flow_info.egr_times[i] = ntohl(*INT_data);
-        flow_info.lv2_in_e_port_ids[i] = ntohl(*INT_data);
-        flow_info.tx_utilizes[i] = ntohl(*INT_data);
+//        flow_info.ingr_times[i] = ntohl(*INT_data);
+//        flow_info.egr_times[i] = ntohl(*INT_data);
+//        flow_info.lv2_in_e_port_ids[i] = ntohl(*INT_data);
+//        flow_info.tx_utilizes[i] = ntohl(*INT_data);
 
         if (is_in_e_port_ids) {
             CURSOR_ADVANCE(INT_data, cursor, sizeof(*INT_data), data_end);
@@ -478,6 +478,18 @@ int collector(struct xdp_md *ctx) {
             flow_info.queue_ids[i] = (ntohl(*INT_data) >> 16) & 0xffff;
             flow_info.queue_occups[i] = ntohl(*INT_data) & 0xffff;
         }
+        CURSOR_ADVANCE(INT_data, cursor, sizeof(*INT_data), data_end);
+        flow_info.ingr_times[i] = ntohl(*INT_data);
+
+        CURSOR_ADVANCE(INT_data, cursor, sizeof(*INT_data), data_end);
+        flow_info.egr_times[i] = ntohl(*INT_data);
+
+        CURSOR_ADVANCE(INT_data, cursor, sizeof(*INT_data), data_end);
+        flow_info.lv2_in_e_port_ids[i] = ntohl(*INT_data);
+
+        CURSOR_ADVANCE(INT_data, cursor, sizeof(*INT_data), data_end);
+        flow_info.tx_utilizes[i] = ntohl(*INT_data);
+
         // if (is_ingr_times) {
         //     CURSOR_ADVANCE(INT_data, cursor, sizeof(*INT_data), data_end);
         //     flow_info.ingr_times[i] = ntohl(*INT_data);

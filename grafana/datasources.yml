@@ -13,6 +13,24 @@ datasources:
    basicAuthUser: ''
    basicAuthPassword: ''
    withCredentials: false
+   isDefault: false
+   jsonData: {}
+   secureJsonFields: {}
+   version: 3
+   readOnly: false
+
+ - name: ClickHouse
+   type: vertamedia-clickhouse-datasource
+   typeLogoUrl: ''
+   access: proxy
+   url: http://clickhouse_db:8123
+   password: ''
+   user: ''
+   database: 'int_telemetry_db'
+   basicAuth: false
+   basicAuthUser: ''
+   basicAuthPassword: ''
+   withCredentials: false
    isDefault: true
    jsonData: {}
    secureJsonFields: {}

@@ -6,7 +6,9 @@ import time
 import sys
 import logging
 
-import pyximport; pyximport.install()
+import pyximport;
+
+pyximport.install()
 import InDBCollector
 
 logging.basicConfig(level=logging.INFO)
@@ -38,8 +40,15 @@ def parse_params():
     parser.add_argument(
         "-INFP",
         "--influx_port",
-        default=8086,
-        help="InfluxDB server port. Default: 8086",
+        default=8123,
+        help="influx server port. Default: 8086",
+    )
+
+    parser.add_argument(
+        "-clickp",
+        "--clickhouse_port",
+        default=8123,
+        help="Clickhousedb server port. Default: 8123",
     )
 
     parser.add_argument(
@@ -161,12 +170,17 @@ if __name__ == "__main__":
         collector.client.create_database(args.database)
         logger.info("Database has been cleared.")
 
-    databases_list = [x["name"] for x in collector.client.get_list_database()]
-    if not (args.database in databases_list):
-        collector.client.create_database(args.database)
-        logger.info("Database has been created.")
+    # databases_list = [x["name"] for x in collector.client.get_list_database()]
+    # if not (args.database in databases_list):
+    #     collector.client.create_database(args.database)
+    #     logger.info("Database has been created.")
+
+    # database_list1=[x["name"] for x in collector.clickhouse_client]
+    # if args.clear in ["yes", "y", "Y", "YES"]:
+    #     for db in collector.clickhouse_client.ex
 
     push_stop_flag = threading.Event()
+
 
     # # A separated thread to push event data
     def _event_push():
@@ -181,8 +195,12 @@ if __name__ == "__main__":
             collector.lock.release()
 
             if data:
-                collector.client.write_points(points=data[0])
-                logger.debug(f"Len of data: {len(data)}")
+                for flow_data in data[0]:
+                    column= "({})".format(", ".join(flow_data))
+                    query = 'INSERT INTO int_telemetry %s VALUES' % column
+                    collector.clickhouse_client.execute(query, [flow_data])
+                    logger.debug(f"Len of data: {len(data)}")
+
 
     event_push = threading.Thread(target=_event_push)
     event_push.start()

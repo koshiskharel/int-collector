@@ -2,6 +2,7 @@ from __future__ import print_function
 import threading
 from bcc import BPF
 from influxdb import InfluxDBClient
+from clickhouse_driver import Client
 from ipaddress import IPv4Address
 from libc.stdint cimport uintptr_t
 import argparse
@@ -61,7 +62,7 @@ class InDBCollector(object):
                  int_time=False,
                  host="localhost",
                  influx_port = 8086,
-                 database="int_telemetry_db",
+                 database=" _db",
                  event_mode="THRESHOLD",
                  thresholds_size=[50, 50, 50, 50, 50, 100],
                  log_level=20,
@@ -115,6 +116,7 @@ class InDBCollector(object):
         self.event_data = []
 
         self.client = InfluxDBClient(host=host, database=database, port=influx_port)
+        self.clickhouse_client= Client(host=host, port=9000, database=database)
         self.log_level = log_level
         self.log_raports_lvl = log_raports_lvl
         self.number_of_event = 0
@@ -129,26 +131,25 @@ class InDBCollector(object):
             destination_timestamp = ingr_times[last_hop_index]
         except Exception as e:
             origin_timestamp, destination_timestamp = 0, 0
-
+        import calendar;
+        import time;
+        ts = calendar.timegm(time.gmtime())
         json_report = {
-            "measurement": "int_telemetry",
-            "tags": flow_id,
-            'time': int(time.time() * 1e9),  # use local time because bmv2 clock is a little slower making time drift
-            "fields": {
-                "origts": 1.0 * origin_timestamp,
-                "dstts": 1.0 * destination_timestamp,
-                "seq": 1.0 * seq_num,
-                "delay": 1.0 * (destination_timestamp - origin_timestamp),
-            }
+            "timearrived" : int(time.time() * 1e9),  # use local time because bmv2 clock is a little slower making time drift
+            "origts": 1.0 * origin_timestamp,
+            "dstts": 1.0 * destination_timestamp,
+            "seq": 1.0 * seq_num,
+            "timedelay": 1.0 * (destination_timestamp - origin_timestamp),
         }
+        json_report.update(flow_id)
 
         # add sink_jitter only if can be calculated (not first packet in the flow)
         if flow_key in self.last_dstts:
-            json_report["fields"]["sink_jitter"] = 1.0 * destination_timestamp - self.last_dstts[flow_key]
+            json_report["sink_jitter"] = 1.0 * destination_timestamp - self.last_dstts[flow_key]
 
         # # add reordering only if can be calculated (not first packet in the flow)
         if flow_key in self.last_reordering:
-            json_report["fields"]["reordering"] = 1.0 * seq_num - self.last_reordering[flow_key] - 1
+            json_report["reordering"] = 1.0 * seq_num - self.last_reordering[flow_key] - 1
 
         # # save dstts for purpose of sink_jitter calculation
         self.last_dstts[flow_key] = destination_timestamp
@@ -164,24 +165,22 @@ class InDBCollector(object):
         tags = copy(flow_id)
         tags['hop_index'] = index
         json_report = {
-            "measurement": "int_telemetry",
-            "tags": tags,
-            'time': int(time.time() * 1e9),  # use local time because bmv2 clock is a little slower making time drift
-            "fields": {}
+            'hop_index':index,
+            'timearrived': int(time.time() * 1e9),  # use local time because bmv2 clock is a little slower making time drift
         }
+        json_report.update(flow_id)
 
         # combine flow id with hop index
         flow_hop_key = (*flow_key, index)
 
         # # add sink_jitter only if can be calculated (not first packet in the flow)
         if flow_hop_key in self.last_hop_ingress_timestamp:
-            json_report["fields"]["hop_jitter"] = ingr_times[index] - self.last_hop_ingress_timestamp[flow_hop_key]
+            json_report["hop_jitter"]= ingr_times[index] - self.last_hop_ingress_timestamp[flow_hop_key]
 
         if hop_latencies[index]:
-            json_report["fields"]["hop_delay"] = hop_latencies[index]
-
+            json_report["hop_delay"] = hop_latencies[index]
         if ingr_times[index] and index > 0:
-            json_report["fields"]["link_delay"] = ingr_times[index] - self.last_hop_delay
+            json_report["link_delay"] = ingr_times[index] - self.last_hop_delay
             self.last_hop_delay = ingr_times[index]
 
         if ingr_times[index]:
