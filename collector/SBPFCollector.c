@@ -291,9 +291,7 @@ struct flow_info_t {
 
     u8 is_n_flow;
 
-// #ifdef USE_INFLUXDB
     u8 is_flow;
-// #endif
 
     u8 is_hop_latency;
     u8 is_queue_occup;

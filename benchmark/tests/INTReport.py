@@ -1,4 +1,9 @@
+"""test int report."""
 from __future__ import print_function
+
+import argparse
+import time
+
 from scapy.fields import (
     BitField,
     IntField,
@@ -7,19 +12,17 @@ from scapy.fields import (
     XIntField,
     FieldListField,
 )
-from scapy.packet import Packet
-from scapy.utils import wrpcap
-from scapy.layers.l2 import Ether
 from scapy.layers.inet import IP, UDP
+from scapy.layers.l2 import Ether
+from scapy.packet import Packet
 from scapy.sendrecv import sendp
-import time
-import argparse
+from scapy.utils import wrpcap
 
 
 class TelemetryReport_v10(Packet):
+    """Test telemetry report v10."""
 
     name = "INT telemetry report v1.0"
-
     # default value a for telemetry report with INT
     fields_desc = [
         BitField("ver", 1, 4),
@@ -38,9 +41,9 @@ class TelemetryReport_v10(Packet):
 
 
 class TelemetryReport(Packet):
+    """Test telemetry report v0.5."""
 
     name = "INT telemetry report v0.5"
-
     # default value a for telemetry report with INT
     fields_desc = [
         BitField("ver", 1, 4),
@@ -56,6 +59,7 @@ class TelemetryReport(Packet):
 
 
 class INT_v10(Packet):
+    """INT v10 packet."""
 
     name = "INT v1.0"
 
@@ -83,9 +87,9 @@ class INT_v10(Packet):
 
 
 class INT(Packet):
+    """Int v0.5 packet."""
 
     name = "INT v0.5"
-
     fields_desc = [
         XByteField("type", 1),
         XByteField("shimRsvd1", None),
@@ -169,9 +173,7 @@ if __name__ == "__main__":
             p = []
             for i in range(0, n_fl):
                 p.append(
-                    Ether()
-                    / IP(tos=0x17 << 2)
-                    / UDP(sport=5000, dport=8086)
+                    Ether() / IP(tos=0x17 << 2) / UDP(sport=5000, dport=8086)
                     / TelemetryReport(ingressTimestamp=1524138290)
                     / Ether()
                     / IP(src="10.0.0.1", dst="10.0.{0}.{1}".format(i / 256, i % 256))
@@ -251,9 +253,7 @@ if __name__ == "__main__":
                             | 1 << 3
                             | 1 << 2
                             | 1 << 1
-                            | 1
-                        )
-                        << 8,
+                            | 1) << 8,
                         INTMetadata=INTdata,
                         originDSCP=14,
                     )
@@ -399,17 +399,7 @@ if __name__ == "__main__":
                     / INT(
                         insCnt=8,
                         totalHopCnt=n_sw,
-                        ins=(
-                            1 << 7
-                            | 1 << 6
-                            | 1 << 5
-                            | 1 << 4
-                            | 1 << 3
-                            | 1 << 2
-                            | 1 << 1
-                            | 1
-                        )
-                        << 8,
+                        ins=(1 << 7 | 1 << 6 | 1 << 5 | 1 << 4 | 1 << 3 | 1 << 2 | 1 << 1 | 1) << 8,
                         INTMetadata=INTdata,
                         originDSCP=14,
                     )
@@ -431,7 +421,7 @@ if __name__ == "__main__":
             for i in range(0, n_fl):
                 print("flow: ", i)
                 # 1000000 pps; 1 abnormal packet is 2 events (11+j -> 1000, and 1000 -> 11+j)
-                for k in range(0, TMP / n_event):
+                for k in range(0, int(TMP / n_event)):
                     INTdata = []
                     for j in range(0, n_sw):
                         addedINT = [
@@ -471,17 +461,7 @@ if __name__ == "__main__":
                         / INT(
                             insCnt=8,
                             totalHopCnt=n_sw,
-                            ins=(
-                                1 << 7
-                                | 1 << 6
-                                | 1 << 5
-                                | 1 << 4
-                                | 1 << 3
-                                | 1 << 2
-                                | 1 << 1
-                                | 1
-                            )
-                            << 8,
+                            ins=(1 << 7 | 1 << 6 | 1 << 5 | 1 << 4 | 1 << 3 | 1 << 2 | 1 << 1 | 1) << 8,
                             INTMetadata=INTdata,
                             originDSCP=14,
                         )
@@ -504,8 +484,7 @@ if __name__ == "__main__":
             / INT(
                 insCnt=8,
                 totalHopCnt=3,
-                ins=(1 << 7 | 1 << 6 | 1 << 5 | 1 << 4 | 1 << 3 | 1 << 2 | 1 << 1 | 1)
-                << 8,
+                ins=(1 << 7 | 1 << 6 | 1 << 5 | 1 << 4 | 1 << 3 | 1 << 2 | 1 << 1 | 1) << 8,
                 INTMetadata=[
                     4,
                     5 << 16 | 3,
@@ -532,8 +511,7 @@ if __name__ == "__main__":
                     5 << 16 | 10,
                     1,
                 ],
-                originDSCP=14,
-            )
+                originDSCP=14,)
         )
 
         p1 = (
@@ -547,8 +525,7 @@ if __name__ == "__main__":
             / INT(
                 insCnt=8,
                 totalHopCnt=3,
-                ins=(1 << 7 | 1 << 6 | 1 << 5 | 1 << 4 | 1 << 3 | 1 << 2 | 1 << 1 | 1)
-                << 8,
+                ins=(1 << 7 | 1 << 6 | 1 << 5 | 1 << 4 | 1 << 3 | 1 << 2 | 1 << 1 | 1) << 8,
                 INTMetadata=[
                     4,
                     5 << 16 | 3,
@@ -575,8 +552,7 @@ if __name__ == "__main__":
                     5 << 16 | 10,
                     1,
                 ],
-                originDSCP=14,
-            )
+                originDSCP=14,)
         )
 
         iface = "veth_0"
@@ -604,8 +580,7 @@ if __name__ == "__main__":
             / INT(
                 insCnt=8,
                 totalHopCnt=3,
-                ins=(1 << 7 | 1 << 6 | 1 << 5 | 1 << 4 | 1 << 3 | 1 << 2 | 1 << 1 | 1)
-                << 8,
+                ins=(1 << 7 | 1 << 6 | 1 << 5 | 1 << 4 | 1 << 3 | 1 << 2 | 1 << 1 | 1) << 8,
                 INTMetadata=[
                     4,
                     2 << 16 | 3,
@@ -632,8 +607,7 @@ if __name__ == "__main__":
                     5 << 16 | 10,
                     1,
                 ],
-                originDSCP=14,
-            )
+                originDSCP=14, )
         )
 
         # wrpcap("pcaps/test_onos_collector.pcap", p0*10)
@@ -688,9 +662,7 @@ if __name__ == "__main__":
                             | 1 << 3
                             | 1 << 2
                             | 1 << 1
-                            | 1
-                        )
-                        << 8,
+                            | 1) << 8,
                         INTMetadata=INTdata,
                         originDSCP=14,
                     )
@@ -809,13 +781,13 @@ if __name__ == "__main__":
             INTdata = [
                 4,
                 40,
-                (i + 1) * 1e6,
+                int((i + 1) * 1e6),
                 5,
                 41,
-                (i + 1) * 1e6,
+                int((i + 1) * 1e6),
                 6,
                 lat,
-                (i + 1) * 1e6,
+                int((i + 1) * 1e6),
             ]
             p.append(
                 Ether()
@@ -857,8 +829,7 @@ if __name__ == "__main__":
                 length=27,
                 hopMLen=8,
                 remainHopCnt=3,
-                ins=(1 << 7 | 1 << 6 | 1 << 5 | 1 << 4 | 1 << 3 | 1 << 2 | 1 << 1 | 1)
-                << 8,
+                ins=(1 << 7 | 1 << 6 | 1 << 5 | 1 << 4 | 1 << 3 | 1 << 2 | 1 << 1 | 1) << 8,
                 INTMetadata=[
                     4,
                     2 << 16 | 3,
@@ -883,10 +854,7 @@ if __name__ == "__main__":
                     7,
                     1524234560,
                     5 << 16 | 10,
-                    1,
-                ],
-            )
-        )
+                    1, ], ))
 
         p1 = (
             Ether()
@@ -900,8 +868,7 @@ if __name__ == "__main__":
                 length=27,
                 hopMLen=8,
                 remainHopCnt=3,
-                ins=(1 << 7 | 1 << 6 | 1 << 5 | 1 << 4 | 1 << 3 | 1 << 2 | 1 << 1 | 1)
-                << 8,
+                ins=(1 << 7 | 1 << 6 | 1 << 5 | 1 << 4 | 1 << 3 | 1 << 2 | 1 << 1 | 1) << 8,
                 INTMetadata=[
                     4,
                     2 << 16 | 3,
@@ -926,10 +893,7 @@ if __name__ == "__main__":
                     7,
                     1524234560,
                     5 << 16 | 10,
-                    1,
-                ],
-            )
-        )
+                    1, ], ))
 
         iface = "veth_0"
 

@@ -1,3 +1,5 @@
+"""Int packet generator."""
+
 import logging
 import json
 from scapy.layers.l2 import Ether
@@ -11,10 +13,12 @@ from modules.int_metadata import INTMetadata
 
 
 class Generator:
+    """Int packet generator."""
 
     list_switch_id = [1, 2, 3, 4, 5, 6]
 
     def __init__(self, hops, log_level=20):
+        """Initialize the data."""
         self.hops = hops
         self.int_header_size = hops * 8 + 3
         self.packets = []
@@ -22,8 +26,12 @@ class Generator:
         self.generator_logger = logging.getLogger("Generator")
         self.generator_logger.setLevel(log_level)
 
+
 class LinearGenerator(Generator):
+    """Generates packets and send it."""
+
     def __init__(self, hops, log_level=20, packets_gen=1000, packets_sent=20000):
+        """Initialize the data."""
         super().__init__(hops, log_level)
         self.number_of_packets_gen = packets_gen
         self.number_of_packets_sent = packets_sent
@@ -33,8 +41,13 @@ class LinearGenerator(Generator):
         )
         self.create_packets()
 
-    def create_packets(self):
+    def create_packets(self) -> tuple:
+        """
+        Create INT packet.
 
+        Returns: generated packet.
+
+        """
         start_time = datetime.now()
         int_metadata = INTMetadata(self.hops)
         int_metadata.create_metadata()
@@ -87,7 +100,18 @@ class LinearGenerator(Generator):
                     )
                     return self.packets
 
-    def send_packets(self, mode, iface, verbose):
+    def send_packets(self, mode, iface, verbose) -> None:
+        """
+        Send packets.
+
+        Args:
+            mode: packet sending mode.
+            iface: interface to send packet.
+            verbose: verbos.
+
+        Returns: None
+
+        """
         self.generator_logger.info(
             f"Start of sending packages through the {iface} interface"
         )
@@ -124,8 +148,19 @@ class LinearGenerator(Generator):
 
 
 class ConstantGenerator(Generator):
-    def send_two_packets(self, iface, verbose):
+    """Constant packet generator."""
 
+    def send_two_packets(self, iface, verbose) -> None:
+        """
+        Send Two packets.
+
+        Args:
+            iface: interface to send packets.
+            verbose: verbos.
+
+        Returns: None.
+
+        """
         self.generator_logger.info("Start of sending two packets.")
 
         int_metadata = INTMetadata(self.hops)
@@ -168,6 +203,8 @@ class ConstantGenerator(Generator):
 
 
 class Editable_Generator(Generator):
+    """Editable Generator."""
+
     fields_positions = {
         0: "switch_id",
         1: "ingress_port",
@@ -181,10 +218,22 @@ class Editable_Generator(Generator):
         9: "tx_utilizes",
     }
 
-    def __str__(self) -> str:
+    def __str__(self):
+        """
+        Convert fields position to string.
+
+        Returns: field position.
+
+        """
         return "Fieds of package" + json.dumps(self.fields_positions, indent=4)
 
-    def generate_packet(self):
+    def generate_packet(self) -> None:
+        """
+        Generate packet.
+
+        Returns: None.
+
+        """
         self.generator_logger.info(
             "Generate one packet. Now you can edit a fields of packet."
         )
@@ -195,28 +244,27 @@ class Editable_Generator(Generator):
 
         stop_flag = "y"
         while stop_flag in ["y", "Y", "yes", "YES", "Yes"]:
-            field_name = int(
+            field_name_input = int(
                 input("Input a number of fields which one you want to edit: ")
             )
-            field_name = self.fields_positions[field_name]
-            
-            p = (
-                Ether()
-                / IP(tos=0x17 << 2)
-                / UDP(sport=5000, dport=8090)
-                / TelemetryReport_v10(ingressTimestamp=1524138290)
-                / Ether()
-                / IP(src="10.0.0.1", dst="10.0.0.2")
-                / UDP(sport=5000, dport=5000)
-                / INT_v10(
-                    length=self.int_header_size,
-                    hopMLen=8,
-                    remainHopCnt=3,
-                    ins=(1 << 7 | 1 << 6 | 1 << 5 | 1 << 4 | 1 << 3 | 1 << 2 | 1 << 1 | 1)
-                    << 8,
-                    INTMetadata=int_metadata.all_int_metadata,
-                )
-            )
+            field_name = self.fields_positions[field_name_input]
+            # p = (
+            #     Ether()
+            #     / IP(tos=0x17 << 2)
+            #     / UDP(sport=5000, dport=8090)
+            #     / TelemetryReport_v10(ingressTimestamp=1524138290)
+            #     / Ether()
+            #     / IP(src="10.0.0.1", dst="10.0.0.2")
+            #     / UDP(sport=5000, dport=5000)
+            #     / INT_v10(
+            #         length=self.int_header_size,
+            #         hopMLen=8,
+            #         remainHopCnt=3,
+            #         ins=(1 << 7 | 1 << 6 | 1 << 5 | 1 << 4 | 1 << 3 | 1 << 2 | 1 << 1 | 1)
+            #         << 8,
+            #         INTMetadata=int_metadata.all_int_metadata,
+            #     )
+            # )
 
             value = int(input('Input value: '))
             int_metadata.increment_per_hop(field_name, value)

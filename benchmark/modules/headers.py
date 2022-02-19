@@ -1,3 +1,5 @@
+"""Int packet headers."""
+
 from scapy.fields import (
     BitField,
     IntField,
@@ -29,6 +31,7 @@ const bit<8> REPORT_FIXED_HEADER_LEN = 16;
 
 
 class TelemetryReport_v10(Packet):
+    """INT telemetry report v1.0 packet header."""
 
     name = "INT telemetry report v1.0"
 
@@ -68,6 +71,7 @@ INT header version 1.0
 
 
 class INT_v10(Packet):
+    """Int v10 packet header."""
 
     name = "INT v1.0"
 

@@ -1,3 +1,5 @@
+"""Generates INT packets."""
+
 import argparse
 import logging
 from modules.generators import LinearGenerator, ConstantGenerator, Editable_Generator

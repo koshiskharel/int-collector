@@ -1,7 +1,6 @@
 from __future__ import print_function
 import threading
 from bcc import BPF
-from influxdb import InfluxDBClient
 from clickhouse_driver import Client
 from ipaddress import IPv4Address
 from libc.stdint cimport uintptr_t
@@ -61,7 +60,6 @@ class InDBCollector(object):
                  int_dst_port=8090,
                  int_time=False,
                  host="localhost",
-                 influx_port = 8086,
                  database=" _db",
                  event_mode="THRESHOLD",
                  thresholds_size=[50, 50, 50, 50, 50, 100],
@@ -70,7 +68,6 @@ class InDBCollector(object):
         super(InDBCollector, self).__init__()
 
         self.MAX_INT_HOP = _MAX_INT_HOP
-        self.SERVER_MODE = "INFLUXDB"
         self.INT_DST_PORT = int_dst_port
         self.EVENT_MODE = event_mode
         self.int_time = int_time
@@ -85,7 +82,7 @@ class InDBCollector(object):
         self.last_dstts = {}  # save last `dstts` per each monitored flow
         self.last_reordering = {}  # save last `reordering` per each monitored flow
         self.last_hop_ingress_timestamp = {}  #save last ingress timestamp per each hop in each monitored flow
-        self.last_send = time.time()  # last time when reports were send to influx
+        self.last_send = time.time()  # last time when reports were send to ClickHouse
 
         self.start = datetime.now()
         self.ifaces = set()
@@ -96,7 +93,6 @@ class InDBCollector(object):
                                          "-D_MAX_INT_HOP=%s" % self.MAX_INT_HOP,
                                          "-D_INT_DST_PORT=%s" % self.INT_DST_PORT,
                                          "-D_EVENT_MODE=%s" % self.EVENT_MODE,
-                                         "-D_SERVER_MODE=%s" % self.SERVER_MODE,
                                          "-D_HOP_LATENCY=%s" % self.hop_latency_t,
                                          "-D_FLOW_LATENCY=%s" % self.flow_latency_t,
                                          "-D_QUEUE_OCCUP=%s" % self.queue_occup_t,
@@ -115,7 +111,6 @@ class InDBCollector(object):
         self.lock = threading.Lock()
         self.event_data = []
 
-        self.client = InfluxDBClient(host=host, database=database, port=influx_port)
         self.clickhouse_client= Client(host=host, port=9000, database=database)
         self.log_level = log_level
         self.log_raports_lvl = log_raports_lvl
@@ -161,7 +156,7 @@ class InDBCollector(object):
         return json_report
 
     def prepare_hop_report(self, flow_id, index, flow_key, hop_latencies, ingr_times):
-        # each INT hop metadata are sent as independed json message to Influx
+        # each INT hop metadata are sent as independed json message to Clickhouse
         tags = copy(flow_id)
         tags['hop_index'] = index
         json_report = {

@@ -1,3 +1,4 @@
+"""Listens to interface for packets and populate Clickhouse db."""
 from __future__ import print_function
 
 import argparse
@@ -9,14 +10,21 @@ import logging
 import pyximport;
 
 pyximport.install()
-import InDBCollector
+import InDBCollector  # noqa: E402
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 def parse_params():
-    parser = argparse.ArgumentParser(description="InfluxBD INTCollector client.")
+    """
+    Get users argument to listen on the interface.
+
+    Returns: Arguments
+
+    """
+    parser = argparse.ArgumentParser(description="ClickhouseDB INTCollector client.")
 
     parser.add_argument(
         "ifaces", nargs="+", help="List of ifaces to receive INT reports."
@@ -34,21 +42,14 @@ def parse_params():
         "-H",
         "--host",
         default="localhost",
-        help="InfluxDB server address. Default: localhost",
-    )
-
-    parser.add_argument(
-        "-INFP",
-        "--influx_port",
-        default=8123,
-        help="influx server port. Default: 8086",
+        help="Clickhouse server address. Default: localhost",
     )
 
     parser.add_argument(
         "-clickp",
         "--clickhouse_port",
-        default=8123,
-        help="Clickhousedb server port. Default: 8123",
+        default=9000,
+        help="Clickhousedb server port. Default: 9000",
     )
 
     parser.add_argument(
@@ -136,8 +137,8 @@ if __name__ == "__main__":
 
     logger.info(
         f"\n\tInterface: {args.ifaces}\n"
-        f"\tInflux address: {args.host}\n"
-        f"\tInflux port: {args.influx_port}\n"
+        f"\tClickhouse address: {args.host}\n"
+        f"\tClickHouse port: {args.clickhouse_port}\n"
         f"\tThresholds size: {thresholds}\n"
         f"\t\t--> Hop latency: {hop_latency_t}\n"
         f"\t\t--> Flow latency: {flow_latency_t}\n"
@@ -155,7 +156,6 @@ if __name__ == "__main__":
         thresholds_size=thresholds,
         log_level=args.log_level,
         log_raports_lvl=args.log_raports_lvl,
-        influx_port=args.influx_port,
     )
 
     for iface in args.ifaces:
@@ -181,10 +181,8 @@ if __name__ == "__main__":
 
     push_stop_flag = threading.Event()
 
-
     # # A separated thread to push event data
     def _event_push():
-
         while not push_stop_flag.is_set():
 
             time.sleep(args.event_period)
@@ -196,11 +194,10 @@ if __name__ == "__main__":
 
             if data:
                 for flow_data in data[0]:
-                    column= "({})".format(", ".join(flow_data))
+                    column = "({})".format(", ".join(flow_data))
                     query = 'INSERT INTO int_telemetry %s VALUES' % column
                     collector.clickhouse_client.execute(query, [flow_data])
                     logger.debug(f"Len of data: {len(data)}")
-
 
     event_push = threading.Thread(target=_event_push)
     event_push.start()

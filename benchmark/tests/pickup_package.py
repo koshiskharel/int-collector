@@ -1,3 +1,4 @@
+"""Packet sniffer."""
 from scapy.sendrecv import sniff
 import time
 import argparse
