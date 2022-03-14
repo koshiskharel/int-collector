@@ -7,7 +7,7 @@ WORKDIR /
 RUN apt-get update
 RUN apt-get -y install python3 python3-distutils python3-pip
 RUN apt-get -y install sudo bison build-essential cmake flex git libedit-dev \
-  libllvm6.0 llvm-6.0-dev libclang-6.0-dev python zlib1g-dev libelf-dev libfl-dev\
+   libllvm11 llvm-11-dev libclang-11-dev python zlib1g-dev libelf-dev libfl-dev\
     net-tools tcpdump iproute2
 
 
